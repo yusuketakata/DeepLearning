@@ -2,7 +2,6 @@
 
 #include "Header.h"
 #include "autoencoder.h"
-#include "raw_io.h"
 #include <numeric>
 #include <fstream>
 
@@ -329,28 +328,13 @@ void fine_tuning(std::vector<SDAE>& sdae, const Eigen::MatrixXf& trainX, const E
 					it->d = diff.array() * (it->output.array() * (1 - it->output.array()));
 
 					Eigen::MatrixXf dW = it->d * batchX.transpose() / (float)batchX.cols();
-					//		std::cout << "dW = " << dW << std::endl;
 					Eigen::MatrixXf db = it->d.rowwise().sum() / (float)batchX.cols();
-					//		std::cout << "db = " << db << std::endl;
 
 					it->W = it->W.array() - eps * dW.array();
 					it->bhid = it->bhid.array() - eps * db.array();
 
 				}
-				// 出力層のところ
-				/*else if (it == sdae.rbegin())
-				{
-				it->d = diff;
 
-				Eigen::MatrixXf dW = it->d * (it+1)->output.transpose() / (float)batchX.cols();
-				Eigen::MatrixXf db = it->d.rowwise().sum() / (float)batchX.cols();
-
-				it->W = it->W.array() - eps * dW.array();
-				it->bhid = it->bhid.array() - eps * db.array();
-
-				diff = it->W.transpose() * it->d;
-				}*/
-				// その他
 				else
 				{
 					it->d = diff.array() * it->output.array() * (1 - it->output.array());
@@ -420,24 +404,27 @@ void fine_tuning(std::vector<SDAE>& sdae, const Eigen::MatrixXf& trainX, const E
 void test(std::vector<SDAE>& sdae, Eigen::MatrixXf testX, std::string dir_o, std::string name)
 {
 	Eigen::MatrixXf expect;
-
 	for (int i = 0; i < sdae.size(); i++)
 	{
 		std::string dir_o_ = dir_o;
 		if (i == 0)
 		{
+			std::cout << "(-_-)" << std::endl;
 			expect = testX;
 		}
 		forward_prop(expect, sdae[i].W, sdae[i].bhid, expect);
 
 		if (i == (sdae.size() - 1))
 		{
-			//	write_raw_and_txt(expect, dir_o + "/expect");
+			std::cout << "(^_^)" << std::endl;
+			if (!nari::system::directry_is_exist(dir_o_ + "/hidden" + std::to_string(i + 1))) nari::system::make_directry(dir_o_ + "/expect");
+			write_raw_and_txt(expect, dir_o + "/expect/" + name);
 		}
 		else
 		{
-			if (!nari::system::directry_is_exist(dir_o_ + "/hidden" + std::to_string(i + 1))) nari::system::make_directry(dir_o_ + "/hidden" + std::to_string(i + 1));
-			write_raw_and_txt(expect, dir_o_ + "/hidden" + std::to_string(i + 1) + "/" + name);
+			// 中間層の出力が必要な場合はコメントアウトを外す
+			//if (!nari::system::directry_is_exist(dir_o_ + "/hidden" + std::to_string(i + 1))) nari::system::make_directry(dir_o_ + "/hidden" + std::to_string(i + 1));
+			//write_raw_and_txt(expect, dir_o_ + "/hidden" + std::to_string(i + 1) + "/" + name);
 		}
 	}
 
