@@ -4,6 +4,7 @@
 #include "sdae_info.h"
 #include "raw_io.h"
 #include "utility.h"
+#include "random_shuffle.h"
 #include "sdae.h"
 
 
@@ -70,7 +71,7 @@ void add_noise(const Eigen::MatrixXf& Input, Eigen::MatrixXf& Output, int type, 
 
 void main(int argc, char *argv[])
 {
-	Eigen::setNbThreads(4);
+
 
 	sdae_info input_info;//入力情報
 	if (argc != 2)
@@ -80,6 +81,8 @@ void main(int argc, char *argv[])
 		exit(1);
 	}
 	input_info.input(argv[1]);
+
+	Eigen::setNbThreads(input_info.num_thread);
 
 	// 分割したstringを格納するためのダミー//////////////////
 	std::vector<std::string> n_unit_dummy = split(input_info.n_unit, ',');
@@ -155,71 +158,62 @@ void main(int argc, char *argv[])
 		///////////////////////////////////////////////////////////////////
 
 		// 学習データ読み込み ////////
-		//std::vector<std::string> train_name;
-		//std::cout << input_info.name_txt << std::endl;
-		//std::ifstream file(input_info.name_txt + "/group" + std::to_string(group[cv_loop]) + "/train_name.txt");
-		//std::string buf;
-		//while (file && getline(file, buf))
-		//{
-		//	train_name.push_back(buf);
-		//}
+		std::vector<std::string> train_name;
+		std::cout << input_info.name_txt << std::endl;
+		std::ifstream file(input_info.name_txt + "/group" + std::to_string(group[cv_loop]) + "/train_name.txt");
+		std::string buf;
+		while (file && getline(file, buf))
+		{
+			train_name.push_back(buf);
+		}
 
 		std::cout << "load train_data Now v(^_^)v" << std::endl;
 
 
-		//std::vector<std::vector<float>> train_X(train_name.size());
+		std::vector<std::vector<float>> train_X(train_name.size());
 
-		//for (size_t n_case = 0; n_case < train_name.size(); n_case++)
-		//{
-		//	read_vector(train_X[n_case], input_info.dir_i + "/" + train_name[n_case] + ".raw");	
-		//}
+		for (size_t n_case = 0; n_case < train_name.size(); n_case++)
+		{
+			read_vector(train_X[n_case], input_info.dir_i + "/" + train_name[n_case] + ".raw");
+		}
 
 
 		Eigen::MatrixXf trainX;  //正解
 		Eigen::MatrixXf trainN;  //feed-forward用
-		load_raw_to_eigen(trainX, input_info.dir_i + "/train_answer.raw", n_unit[0]);
-		std::cout << "train_answer" << std::endl;
-		load_raw_to_eigen(trainN, input_info.dir_i + "/train_data.raw", n_unit[0]);
-		std::cout << "train_data" << std::endl;
 
-		//load_raw_to_eigen(trainX, input_info.dir_i + "/group" + std::to_string(group[cv_loop]) + "/train.raw", n_unit[0]);
-		//load_raw_to_eigen(trainN, input_info.dir_i + "/group" + std::to_string(group[cv_loop]) + "/train.raw", n_unit[0]);
-
-		//random_sort(train_X, trainX, train_name.size(), n_unit[0]);
-		//std::vector<std::vector<float>>().swap(train_X);
+		random_sort(train_X, trainX, train_name.size(), n_unit[0]);
+		std::vector<std::vector<float>>().swap(train_X);
 
 		// ノイズを加える
-		//add_noise(trainX, trainN, input_info.type, input_info.rate);
+		add_noise(trainX, trainN, input_info.type, input_info.rate);
 
 		////////////////////////////////////////////////////////
 		// 交差検定用データ読み込み //
-		//std::vector<std::string> valid_name;
-		//std::cout << input_info.name_txt << std::endl;
-		//std::ifstream file_(input_info.name_txt + "/group" + std::to_string(group[cv_loop]) + "/valid_name.txt");
-		//std::string buf_;
-		//while (file_ && getline(file_, buf_))
-		//{
-		//	valid_name.push_back(buf_);
-		//}
+		std::vector<std::string> valid_name;
+		std::cout << input_info.name_txt << std::endl;
+		std::ifstream file_(input_info.name_txt + "/group" + std::to_string(group[cv_loop]) + "/valid_name.txt");
+		std::string buf_;
+		while (file_ && getline(file_, buf_))
+		{
+			valid_name.push_back(buf_);
+		}
 
-		//std::vector<std::vector<float>> valid_X(valid_name.size());
+		std::vector<std::vector<float>> valid_X(valid_name.size());
 		std::cout << "load validation_data Now v(^_^)v" << std::endl;
 
-		//for (size_t n_case = 0; n_case < valid_name.size(); n_case++)
-		//{
-		//	read_vector(valid_X[n_case], input_info.dir_i + "/" + valid_name[n_case] + ".raw");
-		//}
+		for (size_t n_case = 0; n_case < valid_name.size(); n_case++)
+		{
+			read_vector(valid_X[n_case], input_info.dir_i + "/" + valid_name[n_case] + ".raw");
+		}
 		///////////////////////////////////////////////////////////
 
 		Eigen::MatrixXf validX;
 		Eigen::MatrixXf validN;
-		load_raw_to_eigen(validX, input_info.dir_i + "/valid_answer.raw", n_unit[0]);
-		load_raw_to_eigen(validN, input_info.dir_i + "/valid_data.raw", n_unit[0]);
 
-		//random_sort(valid_X, validX, valid_name.size(), n_unit[0]);
-		//std::vector<std::vector<float>>().swap(valid_X);
+		random_sort(valid_X, validX, valid_name.size(), n_unit[0]);
+		std::vector<std::vector<float>>().swap(valid_X);
 
-		//add_noise(validX, validN, input_info.type, input_info.rate);
+		add_noise(validX, validN, input_info.type, input_info.rate);
 
 		std::cout << "/////////////// PRETRAINING START ///////////////" << std::endl;
 
@@ -290,7 +284,6 @@ void main(int argc, char *argv[])
 				{
 					for (size_t l = 0; l < layer + 1; l++)
 					{
-						std::cout << "l = " << l << std::endl;
 						h.hidden_train_data(l, testX);
 					}
 				}
@@ -332,12 +325,8 @@ void main(int argc, char *argv[])
 			sdae.push_back(layer);
 		}
 
-		////	検証用にfine-tuningのエポックを0にしているぞ！！！
+
 		fine_tuning(sdae, trainN, trainX, validN, validX, (float)input_info.alpha, input_info.epoch, input_info.batch_size, dir_o);
-
-
-
-
 
 		std::cout << "/////////////// TEST START ///////////////" << std::endl;
 
@@ -368,22 +357,12 @@ void main(int argc, char *argv[])
 			}
 
 			testX.resize(n_unit[0], test_X.size() / n_unit[0]);
-			//Eigen::MatrixXf testN = testN.Zero(testX.rows(), testX.cols());
 
 			//add_noise(testX, testN, input_info.type, input_info.rate);
-
-			//std::string dir_o = input_info.dir_o + "/autoencoder/noise_" + std::to_string(input_info.type) + "_" + std::to_string(input_info.rate) + "/param" + input_info.param + "/sdae/group" + std::to_string(group[cv_loop]) + "/noise_image";
-			//if (!nari::system::directry_is_exist(dir_o)) nari::system::make_directry(dir_o);
-			//write_raw_and_txt(testN, dir_o + "/" + test_name[n_test]);
 
 			dir_o = input_info.dir_o + "/autoencoder/noise_" + std::to_string(input_info.type) + "_" + std::to_string(input_info.rate) + "/param" + input_info.param + "/sdae/group" + std::to_string(group[cv_loop]);
 			if (!nari::system::directry_is_exist(dir_o)) nari::system::make_directry(dir_o);
 			test(sdae, testX, dir_o, test_name[n_test]);
-
-			//dir_o = input_info.dir_o + "/autoencoder/noise_" + std::to_string(input_info.type) + "_" + std::to_string(input_info.rate) + "/param" + input_info.param + "/sdae/group" + std::to_string(group[cv_loop]) + "/normal_result";
-			//if (!nari::system::directry_is_exist(dir_o)) nari::system::make_directry(dir_o);
-			//test(sdae, testX, dir_o + "/" + test_name[n_test]);
-
 
 		}
 	}
