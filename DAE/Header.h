@@ -7,6 +7,7 @@
 #include <time.h>
 #include <random>
 #include "eigen-eigen-10219c95fe65\Eigen\Core"
+#include "raw_io.h"
 
 
 std::mt19937_64 engine(65536);
