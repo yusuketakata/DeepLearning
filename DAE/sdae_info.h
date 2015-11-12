@@ -22,6 +22,7 @@ struct sdae_info
 	int CV_group;               // CVグループ数
 	int n_layer;                // 層数
 	int batch_size;				// バッチサイズ
+	int num_thread;				// スレッド数
 	double lambda;              // 正則化パラメータ
 
 
@@ -46,6 +47,7 @@ struct sdae_info
 		batch_size = info.get_as_int("batch_size");								  // バッチサイズ
 		lambda = info.get_as_double("lambda");									  // 正則化パラメータ
 		n_unit = nari::file::add_delim(info.get_as_str("n_unit"));		    	  // 各層のユニット数
+		num_thread = info.get_as_int("num_thread");
 
 		info.output();
 	}
