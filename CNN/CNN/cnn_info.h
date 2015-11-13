@@ -1,8 +1,8 @@
 #ifndef __DCNN_INFO__
 #define __DCNN_INFO__
-#include "naricommon.h"
-#include "nariinfocontroller.h"
-#include "narifile.h"
+#include <naricommon.h>
+#include <nariinfocontroller.h>
+#include <narifile.h>
 #include <string>
 
 struct dcnn_info
@@ -10,6 +10,7 @@ struct dcnn_info
 	std::string param;			//パラメータ番号
 	std::string dir_o;			//出力フォルダ
 	std::string dir_i;			//学習入力フォルダ
+	std::string dir_a;			//正解フォルダ
 	std::string dir_t;			//テスト入力フォルダ
 	std::string dir_p;			//パラメータ格納フォルダ
 	std::string name_txt;		//症例名テキスト
@@ -43,6 +44,7 @@ struct dcnn_info
 		param = nari::file::add_delim(info.get_as_str("param"));		          // parameter number
 		dir_o = nari::file::add_delim(info.get_as_str("dir_o"));		          // 出力フォルダ
 		dir_i = info.get_as_str("dir_i");									      // 入力フォルダ
+		dir_a = info.get_as_str("dir_a");									      // 正解フォルダ
 		dir_t = info.get_as_str("dir_t");									      // テストフォルダ
 		dir_p = info.get_as_str("dir_p");									      // パラメータ格納フォルダ
 		CV_group = info.get_as_int("CV_group");						     	      // 学習データディレクトリ
