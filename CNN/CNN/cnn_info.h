@@ -56,7 +56,7 @@ struct dcnn_info
 		in_size = info.get_as_int("in_size");									  // Input size
 		out_size = info.get_as_int("out_size");									  // Output size
 		process = nari::file::add_delim(info.get_as_str("process"));			  // process(convolution or pooling or full connect)
-		activation = nari::file::add_delim(info.get_as_str("activation"));        //activation function
+		activation = nari::file::add_delim(info.get_as_str("activation"));        // activation function
 		n_map = nari::file::add_delim(info.get_as_str("n_map"));				  // äeëwÇÃmapêî
 		w_size = nari::file::add_delim(info.get_as_str("w_size"));		          // Filter size
 		pool_size = nari::file::add_delim(info.get_as_str("pool_size"));		  // Pooling size
