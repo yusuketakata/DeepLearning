@@ -92,7 +92,6 @@ void MLP::train(Eigen::MatrixXf& X, Eigen::Matrix<unsigned char, Eigen::Dynamic,
 		{
 
 			sigmoid(z, z);
-
 			sigmoid_deriv(z, deriv_z);
 
 		}
