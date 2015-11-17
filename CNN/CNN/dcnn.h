@@ -22,14 +22,14 @@ public:
 
 	std::vector<Eigen::Triplet<float>> t;
 
-	DCNN(dcnn_info, std::vector<char>, int, std::vector<int>, std::vector<int>, std::vector<int>, std::vector<std::string>, int);
+	DCNN(dcnn_info, std::vector<char>, int, std::vector<int>, std::vector<int>, std::vector<int>, std::vector<std::string>, int, int);
 
-	void train(std::string, Eigen::MatrixXf&, Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic>&, Eigen::MatrixXf&, Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic>&, int, int, float, float, float); //(入力，正解，epoch, バッチサイズ, 学習率)
+	void train(std::string, Eigen::MatrixXf&, Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic>&, Eigen::MatrixXf&, Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic>&, int, int, float, float, float, int); //(入力，正解，epoch, バッチサイズ, 学習率)
 
 	void predict(Eigen::MatrixXf&, Eigen::MatrixXf&); //入力，出力
 };
 
-DCNN::DCNN(dcnn_info input_info, std::vector<char> prosess, int _in_map, std::vector<int> _map, std::vector<int> _w_size, std::vector<int> _pool_size, std::vector<std::string> _activation, int cv_loop)
+DCNN::DCNN(dcnn_info input_info, std::vector<char> prosess, int _in_map, std::vector<int> _map, std::vector<int> _w_size, std::vector<int> _pool_size, std::vector<std::string> _activation, int cv_loop, int dropout)
 {
 	n_layer = input_info.n_layer;
 	in = input_info.in_size;
@@ -66,14 +66,14 @@ DCNN::DCNN(dcnn_info input_info, std::vector<char> prosess, int _in_map, std::ve
 		// ※2層目以降は違うコンストラクタを呼ぶ
 		// ※3番目の引数は1層目のコンストラクタと区別をつけるための意味はない引数
 		else if (i != 0 && c_p[i] == 'c'){
-			CNN cnn(input_info.dir_p, layer_h[i - 1].out_size, layer_h[i - 1].W.rows(), map[i - 2], map[i], w_size[w_size_count], c_p[i], layer_h[i - 1].out_size - w_size[w_size_count] + 1, dim, activation[i], input_info.ini_switch, cv_loop, i);
+			CNN cnn(input_info.dir_p, layer_h[i - 1].out_size, layer_h[i - 1].W.rows(), map[i - 2], map[i], w_size[w_size_count], c_p[i], layer_h[i - 1].out_size - w_size[w_size_count] + 1, dim, activation[i],input_info.ini_switch, cv_loop, i);
 			layer_h.push_back(cnn);
 			w_size_count++;
 		}
 		else if (i != 0 && c_p[i] == 'p'){
 			if (layer_h[i - 1].out_size % pool_size[pool_size_count] == 0)
 			{
-				CNN cnn(input_info.dir_p, layer_h[i - 1].out_size, layer_h[i - 1].W.rows(), map[i - 1], layer_h[i - 1].n_map, pool_size[pool_size_count], c_p[i], layer_h[i - 1].out_size / pool_size[pool_size_count], dim, activation[i], input_info.ini_switch, cv_loop, i);
+				CNN cnn(input_info.dir_p, layer_h[i - 1].out_size, layer_h[i - 1].W.rows(), map[i - 1], layer_h[i - 1].n_map, pool_size[pool_size_count], c_p[i], layer_h[i - 1].out_size / pool_size[pool_size_count], dim, activation[i],input_info.ini_switch, cv_loop, i);
 				layer_h.push_back(cnn);
 			}
 			else
@@ -85,7 +85,8 @@ DCNN::DCNN(dcnn_info input_info, std::vector<char> prosess, int _in_map, std::ve
 		}
 		// ※Full connect層も違うコンストラクタを呼ぶ
 		else if (i != 0 && c_p[i] == 'f'){
-			MLP mlp(input_info.dir_p, layer_h[i - 1].W.rows(), out, activation[i], error_function, input_info.ini_switch, cv_loop);
+			// *** ここのコンストラクタの呼び方によってフルコネクト層の中間層の有無を決める *** //
+			MLP mlp((int)layer_h[i - 1].W.rows(), (int)layer_h[i - 1].W.rows(), out, activation[i], activation[i], error_function, dropout);
 			layer_f.push_back(mlp);
 		}
 	}
@@ -95,7 +96,7 @@ DCNN::DCNN(dcnn_info input_info, std::vector<char> prosess, int _in_map, std::ve
 
 // ネットワークの訓練 長くなったので小分けしたい
 void DCNN::train(std::string dir_o, Eigen::MatrixXf& trainX, Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic>& trainY,
-	Eigen::MatrixXf& validX, Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic>& validY, int epochs = 500, int batch_size = 50, float learning_rate = 0.1, float moment = 0.0, float lamda = 0.0)
+	Eigen::MatrixXf& validX, Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic>& validY, int epochs = 500, int batch_size = 50, float learning_rate = 0.1, float moment = 0.0, float lamda = 0.0, int dropout = 1)
 {
 
 	int batch_num;  //1epochごとに重みを更新する回数
@@ -116,7 +117,8 @@ void DCNN::train(std::string dir_o, Eigen::MatrixXf& trainX, Eigen::Matrix<unsig
 	for (int epoch = 0; epoch < epochs; epoch++)
 	{
 		cost = 0.0;
-		//shuffle(trainX, trainX, trainY, trainY);
+
+		// *** ミニバッチループ *** //
 		for (int batch_index = 0; batch_index < batch_num; batch_index++)
 		{
 
@@ -125,6 +127,8 @@ void DCNN::train(std::string dir_o, Eigen::MatrixXf& trainX, Eigen::Matrix<unsig
 				printf("epoch : %d / %d , batch : %d / %d\n", epoch + 1, epochs, batch_index + 1, batch_num);
 				printf("cost = %f\n", batch_cost);
 			}
+
+			// *** バッチの取り出し *** //
 			batch = trainX.block(0, batch_size * batch_index, trainX.rows(), batch_size);
 			batch_label = trainY.block(0, batch_size * batch_index, trainY.rows(), batch_size);
 
@@ -153,6 +157,7 @@ void DCNN::train(std::string dir_o, Eigen::MatrixXf& trainX, Eigen::Matrix<unsig
 				{
 					batch_cost = 0.0;
 					layer_f[0].train(output, batch_label, learning_rate, back_delta, batch_cost, moment, lamda);
+
 					cost += batch_cost;
 
 				}
@@ -602,9 +607,9 @@ void DCNN::train(std::string dir_o, Eigen::MatrixXf& trainX, Eigen::Matrix<unsig
 			}
 		}
 
+		
 
-
-
+		
 	} // epochループ
 
 	for (int i = 0; i < layer_h.size(); i++){
