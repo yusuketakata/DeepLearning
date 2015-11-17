@@ -9,7 +9,6 @@
 
 int main(int argc, char *argv[]){
 
-
 	dcnn_info input_info;//入力情報
 	if (argc != 2)
 	{
@@ -22,7 +21,7 @@ int main(int argc, char *argv[]){
 	Eigen::setNbThreads(input_info.thread);
 	Eigen::initParallel();
 
-	// 分割したstringを格納するためのダミー//////////////////
+	//*** 分割したstringを格納するためのダミー ***//
 	std::vector<std::string> process_dummy = split(input_info.process, ',');
 	std::vector<std::string> activation_dummy = split(input_info.activation, ',');
 	std::vector<std::string> n_map_dummy = split(input_info.n_map, ',');
@@ -93,8 +92,7 @@ int main(int argc, char *argv[]){
 		///////////////// DCNNのオブジェクトの初期化 ///////////////////////
 
 		std::cout << "Group" + std::to_string(group[cv_loop]) + " Start" << std::endl;
-		DCNN dcnn(input_info, process, in_map, n_map, w_size, pool_size, activation, cv_loop);
-
+		DCNN dcnn(input_info, process, in_map, n_map, w_size, pool_size, activation, cv_loop, input_info.dropout);
 
 		/**** 入力は(次元数，サンプル数)の行列で与えてください ****/
 		/**** 正解は(クラス数, サンプル数)の行列で与えてください ****/
@@ -113,7 +111,6 @@ int main(int argc, char *argv[]){
 
 		std::vector<std::vector<float>> train_X(train_name.size());
 		std::vector<std::vector<unsigned char>> train_Y(train_name.size());
-
 
 		for (size_t n_case = 0; n_case < train_name.size(); n_case++){
 
@@ -149,81 +146,84 @@ int main(int argc, char *argv[]){
 
 		for (size_t n_case = 0; n_case < valid_name.size(); n_case++)
 		{
-
 			read_vector(valid_X[n_case], input_info.dir_i + "/group" + std::to_string(group[cv_loop]) + '/' + valid_name[n_case] + ".raw");
 			read_vector(valid_Y[n_case], input_info.dir_a + "/" + valid_name[n_case] + ".raw");
+		}
 
 
-			Eigen::MatrixXf validX;
-			Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> validY;
+		Eigen::MatrixXf validX;
+		Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic> validY;
 
-			random_sort(valid_X, valid_Y, validX, validY, valid_name.size(), in_dim);
-
-
-			std::vector<std::vector<float>>().swap(valid_X);
-			std::vector<std::vector<unsigned char>>().swap(valid_Y);
+		random_sort(valid_X, valid_Y, validX, validY, valid_name.size(), in_dim);
 
 
+		std::vector<std::vector<float>>().swap(valid_X);
+		std::vector<std::vector<unsigned char>>().swap(valid_Y);
 
-			clock_t start, end;
+
+
+		clock_t start, end;
+		start = clock();
+
+		std::string dir_o = input_info.dir_o + "/param" + input_info.param + "/group" + std::to_string(group[cv_loop]);
+
+		if (!nari::system::directry_is_exist(dir_o))
+			nari::system::make_directry(dir_o);
+
+
+
+		dcnn.train(dir_o, trainX, trainY, validX, validY, input_info.epoch, input_info.batch_size, (float)input_info.alpha, input_info.moment, input_info.lamda, input_info.dropout);
+
+		end = clock();
+		double ti = (double)(end - start) / CLOCKS_PER_SEC;
+		std::cout << "train for : " << ti << "[s]" << std::endl;
+
+
+
+		std::cout << "//*** TEST START ***//" << std::endl;
+
+
+		std::vector<std::string> test_name;
+		std::cout << input_info.name_txt << std::endl;
+		std::ifstream file__(input_info.name_txt + "/group" + std::to_string(group[cv_loop]) + "/test_name.txt");
+		std::string buf__;
+		while (file__ && getline(file__, buf__))
+		{
+			test_name.push_back(buf__);
+		}
+
+		for (size_t n_test = 0; n_test < test_name.size(); n_test++)
+		{
+
+			std::vector<float> test_X;
+			std::cout << "loading test_data Now v(^_^)v" << std::endl;
+
+			read_vector(test_X, input_info.dir_t + "/" + test_name[n_test] + ".raw");
+
+			Eigen::MatrixXf testX(in_dim, test_X.size() / in_dim);
+			for (long long yy = 0; yy < test_X.size() / in_dim; yy++){
+				for (int xx = 0; xx < in_dim; xx++){
+					testX(xx, yy) = test_X[yy * in_dim + xx];
+				}
+			}
+
+			Eigen::MatrixXf OUTPUT;
 			start = clock();
 
-			std::string dir_o = input_info.dir_o + "/param" + input_info.param + "/group" + std::to_string(group[cv_loop]);
-
-			if (!nari::system::directry_is_exist(dir_o)) nari::system::make_directry(dir_o);
-
-			dcnn.train(dir_o, trainX, trainY, validX, validY, input_info.epoch, input_info.batch_size, (float)input_info.alpha);
+			dcnn.predict(testX, OUTPUT);
 
 			end = clock();
-			double ti = (double)(end - start) / CLOCKS_PER_SEC;
-			std::cout << "train for : " << ti << "[s]" << std::endl;
+			ti = (double)(end - start) / CLOCKS_PER_SEC;
+			std::cout << "predict for : " << ti << "[s]" << std::endl;
 
 
+			std::string dir_o = input_info.dir_o + "/param" + input_info.param + "/predict";
+			if (!nari::system::directry_is_exist(dir_o))
+				nari::system::make_directry(dir_o);
 
-			std::cout << "/////////////// TEST START ///////////////" << std::endl;
+			write_raw_and_txt(OUTPUT, dir_o + "/" + test_name[n_test]);
 
-
-			std::vector<std::string> test_name;
-			std::cout << input_info.name_txt << std::endl;
-			std::ifstream file__(input_info.name_txt + "/group" + std::to_string(group[cv_loop]) + "/test_name.txt");
-			std::string buf__;
-			while (file__ && getline(file__, buf__))
-			{
-				test_name.push_back(buf__);
-			}
-
-			for (size_t n_test = 0; n_test < test_name.size(); n_test++)
-			{
-
-				std::vector<float> test_X;
-				std::cout << "loading test_data Now v(^_^)v" << std::endl;
-
-				read_vector(test_X, input_info.dir_t + "/" + test_name[n_test] + ".raw");
-
-				Eigen::MatrixXf testX(in_dim, test_X.size() / in_dim);
-				for (long long yy = 0; yy < test_X.size() / in_dim; yy++){
-					for (int xx = 0; xx < in_dim; xx++){
-						testX(xx, yy) = test_X[yy * in_dim + xx];
-					}
-				}
-
-				Eigen::MatrixXf OUTPUT;
-				start = clock();
-
-				dcnn.predict(testX, OUTPUT);
-
-				end = clock();
-				ti = (double)(end - start) / CLOCKS_PER_SEC;
-				std::cout << "predict for : " << ti << "[s]" << std::endl;
-
-
-				std::string dir_o = input_info.dir_o + "/param" + input_info.param + "/predict";
-				if (!nari::system::directry_is_exist(dir_o)) nari::system::make_directry(dir_o);
-
-				write_raw_and_txt(OUTPUT, dir_o + "/" + test_name[n_test]);
-
-			}
 		}
 	}
-		return 0;
+	return 0;
 }
