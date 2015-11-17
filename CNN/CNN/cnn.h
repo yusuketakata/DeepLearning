@@ -85,32 +85,16 @@ CNN::CNN(std::string dir_p, int in_s, int in_map, int n_m, int w_s, char p, int 
 			for (int j = 0; j < W_init.rows(); j++){
 				for (int i = 0; i < W_init.cols(); i++){
 					W_init(j, i) = dist(engine);
-					//W_init(j, i) = 0.01;
-					//if (j==0)
-					//{
-					//	W_init(j,i) = 0.01;
-					//}
-					//else if (j==1)
-					//{
-					//	W_init(j,i) = 0.02;
-					//}
-					//}else if (j==2)
-					//{
-					//	W_init(j,i) = 0.03;
-					//}else if (j==3)
-					//{
-					//	W_init(j,i) = 0.04;
-					//}
 				}
 			}
 		}
 		else if (ini_switch == 1){
 			std::vector<float> W_dummy;
-			read_vector(W_dummy, dir_p + "/group" + std::to_string(cv_loop + 1) + "/hidden_W" + std::to_string(layer) + ".raw");
+			read_vector(W_dummy, dir_p + "/group" + std::to_string(cv_loop+1) + "/hidden_W" + std::to_string(layer) + ".raw");
 			for (int j = 0; j < W_init.cols(); j++){
 				for (int i = 0; i < W_init.rows(); i++){
 					W_init(i, j) = W_dummy[j * W_init.rows() + i];
-
+					
 				}
 			}
 			std::cout << "param get" << std::endl;
@@ -148,8 +132,7 @@ CNN::CNN(std::string dir_p, int in_s, int in_map, int n_m, int w_s, char p, int 
 							if (count_w != 0 && count_w % (w_size * w_size) == 0){
 								i += ((in_size * (in_size - w_size)) + (in_size - w_size - 1) + 1);
 							}
-							//std::cout << cout_init << "," << count_w << std::endl;
-							//std::cout << cout_init;
+
 							t[count] = Eigen::Triplet<float>(j + (k * out_dim), i, W_init(cout_init, count_w));
 							count++;
 							count_w++;
@@ -177,8 +160,7 @@ CNN::CNN(std::string dir_p, int in_s, int in_map, int n_m, int w_s, char p, int 
 							if (count_w != 0 && count_w % w_size == 0 && count_w % (w_size * w_size) != 0){
 								i += (in_size - w_size);
 							}
-							//std::cout << cout_init << "," << count_w << std::endl;
-							//std::cout << cout_init;
+
 							t[count] = Eigen::Triplet<float>(j + (k * out_dim), i, W_init(cout_init, count_w));
 							count++;
 							count_w++;
@@ -244,10 +226,9 @@ CNN::CNN(std::string dir_p, int in_s, int in_map, int n_m, int w_s, char p, int 
 				if (count_w != 0 && count_w % (w_size * w_size) == 0){
 					i += ((in_size * (in_size - w_size)) + (in_size - w_size - 1) + 1);
 				}
-				//std::cout << i << "," << j << std::endl;
+
 				t[count] = Eigen::Triplet<float>(j, i, (float)1 / w_dim);
-				//std::cout << t.size() << std::endl;/////
-				//t[count] = Triplet<double>( j , i, 1 );
+
 				count++;
 				count_w++;
 				if (count_w == w_size * w_size * w_size)	break; //フィルタサイズ分代入したら終了
@@ -317,28 +298,13 @@ CNN::CNN(std::string dir_p, int in_s, int pre_out, int pre_map, int n_m, int w_s
 			for (int j = 0; j < W_init.rows(); j++){
 				for (int i = 0; i < W_init.cols(); i++){
 					W_init(j, i) = dist(engine);
-					//W_init(j, i) = 0.01;
-					//if (j==0)
-					//{
-					//	W_init(j,i) = 0.03;
-					//}
-					//else if (j==1)
-					//{
-					//	W_init(j,i) = 0.04;
-					//}else if (j==2)
-					//{
-					//	W_init(j,i) = 0.05;
-					//}else if (j==3)
-					//{
-					//	W_init(j,i) = 0.06;
-					//}
 				}
 			}
 		}
 		else if (ini_switch == 1){
 
 			std::vector<float> W_dummy;
-			read_vector(W_dummy, dir_p + "/group" + std::to_string(cv_loop + 1) + "/hidden_W" + std::to_string(layer) + ".raw");
+			read_vector(W_dummy, dir_p + "/group" + std::to_string(cv_loop+1) + "/hidden_W" + std::to_string(layer) + ".raw");
 
 			for (int j = 0; j < W_init.cols(); j++){
 				for (int i = 0; i < W_init.rows(); i++){
@@ -349,7 +315,7 @@ CNN::CNN(std::string dir_p, int in_s, int pre_out, int pre_map, int n_m, int w_s
 			std::cout << "param get" << std::endl;
 
 		}
-		//b = Eigen::VectorXf::Zero(n_map);
+
 		W_stock = W_init;
 
 		W.resize(out_dim * n_map, pre_out);
@@ -358,7 +324,6 @@ CNN::CNN(std::string dir_p, int in_s, int pre_out, int pre_map, int n_m, int w_s
 
 		t.resize(w_num);
 
-		//std::cout << in_size << "," << in_dim << std::endl;
 
 		int count = 0; //全結合数カウント
 		int cout_init = 0;
@@ -384,8 +349,7 @@ CNN::CNN(std::string dir_p, int in_s, int pre_out, int pre_map, int n_m, int w_s
 							if (count_w != 0 && count_w % (w_size * w_size) == 0){
 								i += ((in_size * (in_size - w_size)) + (in_size - w_size - 1) + 1);
 							}
-							//std::cout << cout_init << "," << count_w << std::endl;
-							//std::cout << cout_init;
+
 							t[count] = Eigen::Triplet<float>(j + (k * out_dim), i, W_init(cout_init, count_w));
 							count++;
 							count_w++;
@@ -413,8 +377,7 @@ CNN::CNN(std::string dir_p, int in_s, int pre_out, int pre_map, int n_m, int w_s
 							if (count_w != 0 && count_w % w_size == 0 && count_w % (w_size * w_size) != 0){
 								i += (in_size - w_size);
 							}
-							//std::cout << cout_init << "," << count_w << std::endl;
-							//std::cout << cout_init;
+
 							t[count] = Eigen::Triplet<float>(j + (k * out_dim), i, W_init(cout_init, count_w));
 							count++;
 							count_w++;
@@ -692,7 +655,6 @@ void CNN::pooling(Eigen::MatrixXf& INPUT, Eigen::MatrixXf& OUTPUT, std::string p
 			}
 
 			W.setFromTriplets(t.begin(), t.end());
-			//std::cout << "W  " << W << std::endl;
 			stock_output.block(0, batch, stock_output.rows(), 1) = W * INPUT.col(batch);
 
 		}
