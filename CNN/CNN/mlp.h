@@ -247,7 +247,6 @@ void MLP::train(Eigen::MatrixXf& X, Eigen::Matrix<unsigned char, Eigen::Dynamic,
 
 			if (act1 == "sigmoid")
 			{
-				std::cout << mask << std::endl;
 				sigmoid(z, z);
 				z.array() *= mask.cast<float>().array();  ///dropout
 				sigmoid_deriv(z, deriv_z);
