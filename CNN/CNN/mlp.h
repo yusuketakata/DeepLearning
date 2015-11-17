@@ -2,15 +2,14 @@
 #include "Header.h"
 #include "Utils.h"
 
-
 class MLP
 {
 public:
 	int numInput, numHidden, numOutput; //入力層，中間層，出力層のユニット数
-	int error_function;      	    // 誤差関数
-	int dropout;                        // dropout行うか
-	Eigen::MatrixXf weight1, weight2;   //入力層-中間層，中間層-出力層の重み行列
-	Eigen::VectorXf b1, b2;             //入力層-中間層，中間層-出力層のバイアスベクトル
+	int error_function;      // 誤差関数
+	int dropout;             // dropout行うか
+	Eigen::MatrixXf weight1, weight2; //入力層-中間層，中間層-出力層の重み行列
+	Eigen::VectorXf b1, b2; //入力層-中間層，中間層-出力層のバイアスベクトル
 
 	bool full_connect;
 
@@ -242,7 +241,6 @@ void MLP::train(Eigen::MatrixXf& X, Eigen::Matrix<unsigned char, Eigen::Dynamic,
 
 			if (act1 == "sigmoid")
 			{
-				std::cout << mask << std::endl;
 				sigmoid(z, z);
 				z.array() *= mask.cast<float>().array();  ///dropout
 				sigmoid_deriv(z, deriv_z);
