@@ -2,15 +2,14 @@
 #include "Header.h"
 #include "Utils.h"
 
-
 class MLP
 {
 public:
 	int numInput, numHidden, numOutput; //入力層，中間層，出力層のユニット数
-	int error_function;      	    // 誤差関数
-	int dropout;                        // dropout行うか
-	Eigen::MatrixXf weight1, weight2;   //入力層-中間層，中間層-出力層の重み行列
-	Eigen::VectorXf b1, b2;             //入力層-中間層，中間層-出力層のバイアスベクトル
+	int error_function;      // 誤差関数
+	int dropout;             // dropout行うか
+	Eigen::MatrixXf weight1, weight2; //入力層-中間層，中間層-出力層の重み行列
+	Eigen::VectorXf b1, b2; //入力層-中間層，中間層-出力層のバイアスベクトル
 
 	bool full_connect;
 
@@ -187,10 +186,6 @@ MLP::MLP(int _numInput, int _numHidden, int _numOutput, std::string _act1, std::
 		}
 	}
 
-<<<<<<< HEAD
-			sigmoid(z, z);
-			sigmoid_deriv(z, deriv_z);
-=======
 	b1 = Eigen::VectorXf::Zero(numHidden);
 	b2 = Eigen::VectorXf::Zero(numOutput);
 
@@ -208,7 +203,6 @@ MLP::MLP(int _numInput, int _numHidden, int _numOutput, std::string _act1, std::
 /**** 学習 ****/
 void MLP::train(Eigen::MatrixXf& X, Eigen::Matrix<unsigned char, Eigen::Dynamic, Eigen::Dynamic>& t, float learning_rate, Eigen::MatrixXf& back_delta, float& cost, float moment, float lamda)
 {
->>>>>>> 37836b785efe83dbc94fba51e6b0874755ce912e
 
 	if (full_connect) //中間層を挟む場合
 	{

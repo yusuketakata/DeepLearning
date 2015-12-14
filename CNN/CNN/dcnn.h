@@ -2,8 +2,7 @@
 #include"Header.h"
 #include"cnn.h"
 #include "mlp.h"
-#include "cnn_info.h"
-
+#include "dcnn_info.h"
 
 class DCNN
 {
@@ -66,14 +65,14 @@ DCNN::DCNN(dcnn_info input_info, std::vector<char> prosess, int _in_map, std::ve
 		// ※2層目以降は違うコンストラクタを呼ぶ
 		// ※3番目の引数は1層目のコンストラクタと区別をつけるための意味はない引数
 		else if (i != 0 && c_p[i] == 'c'){
-			CNN cnn(input_info.dir_p, layer_h[i - 1].out_size, layer_h[i - 1].W.rows(), map[i - 2], map[i], w_size[w_size_count], c_p[i], layer_h[i - 1].out_size - w_size[w_size_count] + 1, dim, activation[i],input_info.ini_switch, cv_loop, i);
+			CNN cnn(input_info.dir_p, layer_h[i - 1].out_size, layer_h[i - 1].W.rows(), map[i - 2], map[i], w_size[w_size_count], c_p[i], layer_h[i - 1].out_size - w_size[w_size_count] + 1, dim, activation[i], input_info.ini_switch, cv_loop, i);
 			layer_h.push_back(cnn);
 			w_size_count++;
 		}
 		else if (i != 0 && c_p[i] == 'p'){
 			if (layer_h[i - 1].out_size % pool_size[pool_size_count] == 0)
 			{
-				CNN cnn(input_info.dir_p, layer_h[i - 1].out_size, layer_h[i - 1].W.rows(), map[i - 1], layer_h[i - 1].n_map, pool_size[pool_size_count], c_p[i], layer_h[i - 1].out_size / pool_size[pool_size_count], dim, activation[i],input_info.ini_switch, cv_loop, i);
+				CNN cnn(input_info.dir_p, layer_h[i - 1].out_size, layer_h[i - 1].W.rows(), map[i - 1], layer_h[i - 1].n_map, pool_size[pool_size_count], c_p[i], layer_h[i - 1].out_size / pool_size[pool_size_count], dim, activation[i], input_info.ini_switch, cv_loop, i);
 				layer_h.push_back(cnn);
 			}
 			else
@@ -112,6 +111,8 @@ void DCNN::train(std::string dir_o, Eigen::MatrixXf& trainX, Eigen::Matrix<unsig
 
 	std::vector<float> cost_vec;
 	std::vector<float> valid_cost_vec;
+	std::vector<float> valid_cost_avg;
+
 	int count_valid = 0;
 
 	for (int epoch = 0; epoch < epochs; epoch++)
@@ -562,54 +563,81 @@ void DCNN::train(std::string dir_o, Eigen::MatrixXf& trainX, Eigen::Matrix<unsig
 		cost_vec.push_back(cost);
 		printf("epoch : %d, cost = %f\n", (epoch + 1), cost);
 
-		// validation_num回おきに検定を行う
-		if ((epoch + 1) % validation_num == 0){
-			Eigen::MatrixXf valid_output;
 
-			for (int layer = 0; layer < n_layer - 1; layer++)
+		// Calculate validaton-cost
+		Eigen::MatrixXf valid_output;
+
+		for (int layer = 0; layer < n_layer - 1; layer++)
+		{
+			std::vector<Eigen::MatrixXf> valid_output_stock;
+
+
+			if (layer == 0){
+
+				layer_h[0].convn(validX, valid_output, layer_h[0].act);
+
+			}
+			else if (layer != 0 && c_p[layer] == 'c'){
+
+				layer_h[layer].convn(valid_output, valid_output, layer_h[layer].act);
+
+			}
+			else if (layer != 0 && c_p[layer] == 'p')
 			{
-				std::vector<Eigen::MatrixXf> valid_output_stock;
 
-
-				if (layer == 0){
-
-					layer_h[0].convn(validX, valid_output, layer_h[0].act);
-
-				}
-				else if (layer != 0 && c_p[layer] == 'c'){
-
-					layer_h[layer].convn(valid_output, valid_output, layer_h[layer].act);
-
-				}
-				else if (layer != 0 && c_p[layer] == 'p')
-				{
-
-					layer_h[layer].pooling(valid_output, valid_output, layer_h[layer].act);
-
-				}
-				else if (layer == n_layer - 2)
-				{
-
-					float valid_cost = 0.0;
-					layer_f[0].valid_test(valid_output, validY, valid_cost);
-
-					std::cout << "validation-cost : " << valid_cost << std::endl;
-					valid_cost_vec.push_back(valid_cost);
-				}
+				layer_h[layer].pooling(valid_output, valid_output, layer_h[layer].act);
 
 			}
+			else if (layer == n_layer - 2)
+			{
 
-			if (count_valid > 0 && (valid_cost_vec[count_valid] > valid_cost_vec[count_valid - 1])){
-				break;
-			}
-			else{
-				count_valid++;
+				float valid_cost = 0.0;
+				layer_f[0].valid_test(valid_output, validY, valid_cost);
+
+				std::cout << "validation-cost : " << valid_cost << std::endl;
+				valid_cost_vec.push_back(valid_cost);
 			}
 		}
 
-		
 
-		
+		// validation_num回おきに検定を行う
+
+		if ((valid_cost_avg.size() > 0) && ((epoch + 1) % validation_num == 0)){
+			std::cout << count_valid + 1 << "回目の検定を行います(*'ω'*)" << std::endl;
+			///////////////////////////////////////////////////////////
+			float total = 0;
+			for (int val_n = 0; val_n < validation_num; val_n++)
+			{
+				total += valid_cost_vec[epoch - val_n];
+			}
+			valid_cost_avg.push_back(total / validation_num);
+
+
+			std::cout << "前回 : " << valid_cost_avg[count_valid] << std::endl;
+			std::cout << "今回 : " << valid_cost_avg[count_valid + 1] << std::endl;
+
+			if (valid_cost_avg[count_valid] < valid_cost_avg[count_valid + 1])
+			{
+				break;	// early-stopping
+			}
+			count_valid++;
+			std::cout << "処理続行します('◇')ゞ" << std::endl;
+		}
+
+		// 1回目のvalidation検定の平均を計算
+		if (valid_cost_vec.size() == validation_num)
+		{
+			float total = 0;
+			for (int val_n = 0; val_n < validation_num; val_n++)
+			{
+				total += valid_cost_vec[val_n];
+			}
+			valid_cost_avg.push_back(total / validation_num);
+		}
+
+
+
+
 	} // epochループ
 
 	for (int i = 0; i < layer_h.size(); i++){
