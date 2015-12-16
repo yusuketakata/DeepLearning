@@ -1,9 +1,8 @@
-
 #include "Header.h"
 #include "autoencoder.h"
 #include "sdae_info.h"
-#include "raw_io.h"
-#include "utility.h"
+#include "tktlib/raw_io.h"
+#include "tktlib/utility.h"
 #include "random_shuffle.h"
 #include "sdae.h"
 
@@ -246,51 +245,51 @@ void main(int argc, char *argv[])
 
 
 
-			////// 中間層の特徴量を全データ分保存
-			std::vector<std::string> test_name;
-			std::cout << input_info.name_txt << std::endl;
-			std::ifstream file__(input_info.name_txt + "/all.txt");
-			std::string buf__;
-			while (file__ && getline(file__, buf__))
-			{
-				test_name.push_back(buf__);
-			}
+			//////// 中間層の特徴量を全データ分保存
+			//std::vector<std::string> test_name;
+			//std::cout << input_info.name_txt << std::endl;
+			//std::ifstream file__(input_info.name_txt + "/all.txt");
+			//std::string buf__;
+			//while (file__ && getline(file__, buf__))
+			//{
+			//	test_name.push_back(buf__);
+			//}
 
-			for (size_t n_test = 0; n_test < test_name.size(); n_test++)
-			{
+			//for (size_t n_test = 0; n_test < test_name.size(); n_test++)
+			//{
 
-				std::vector<float> test_X;
+			//	std::vector<float> test_X;
 
-				std::cout << "loading" + test_name[n_test] + " Now v(^_^)v" << std::endl;
-				read_vector(test_X, input_info.dir_t + "/" + test_name[n_test] + ".raw");
+			//	std::cout << "loading" + test_name[n_test] + " Now v(^_^)v" << std::endl;
+			//	read_vector(test_X, input_info.dir_t + "/" + test_name[n_test] + ".raw");
 
-				Eigen::MatrixXf testX(test_X.size(), 1);
-				for (size_t i = 0; i < test_X.size(); i++)
-				{
-					testX(i, 0) = test_X[i];
-				}
+			//	Eigen::MatrixXf testX(test_X.size(), 1);
+			//	for (size_t i = 0; i < test_X.size(); i++)
+			//	{
+			//		testX(i, 0) = test_X[i];
+			//	}
 
-				testX.resize(n_unit[0], test_X.size() / n_unit[0]);
-				Eigen::MatrixXf testN = testN.Zero(testX.rows(), testX.cols());
+			//	testX.resize(n_unit[0], test_X.size() / n_unit[0]);
+			//	Eigen::MatrixXf testN = testN.Zero(testX.rows(), testX.cols());
 
-				std::string dir_o_ = input_info.dir_o + "/autoencoder/noise_" + std::to_string(input_info.type) + "_" + std::to_string(input_info.rate) + "/param" + input_info.param + "/dae/group" + std::to_string(group[cv_loop]) + "/layer" + std::to_string(layer + 1) + "/hidden";
-				if (!nari::system::directry_is_exist(dir_o_)) nari::system::make_directry(dir_o_);
+			//	std::string dir_o_ = input_info.dir_o + "/autoencoder/noise_" + std::to_string(input_info.type) + "_" + std::to_string(input_info.rate) + "/param" + input_info.param + "/dae/group" + std::to_string(group[cv_loop]) + "/layer" + std::to_string(layer + 1) + "/hidden";
+			//	if (!nari::system::directry_is_exist(dir_o_)) nari::system::make_directry(dir_o_);
 
-				if (layer == 0)
-				{
-					h.hidden_train_data(layer, testX);
-				}
-				else
-				{
-					for (size_t l = 0; l < layer + 1; l++)
-					{
-						h.hidden_train_data(l, testX);
-					}
-				}
-				write_raw_and_txt(testX, dir_o_ + "/" + test_name[n_test]);
+			//	if (layer == 0)
+			//	{
+			//		h.hidden_train_data(layer, testX);
+			//	}
+			//	else
+			//	{
+			//		for (size_t l = 0; l < layer + 1; l++)
+			//		{
+			//			h.hidden_train_data(l, testX);
+			//		}
+			//	}
+			//	write_raw_and_txt(testX, dir_o_ + "/" + test_name[n_test]);
 
 
-			}
+			//}
 
 			////// 中間層の特徴量を全データ分保存ここまで //////////////
 

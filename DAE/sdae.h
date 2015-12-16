@@ -2,32 +2,38 @@
 
 #include "Header.h"
 #include "autoencoder.h"
+#include "tktlib\raw_io.h"
 #include <numeric>
 #include <fstream>
+#include "nalib\system\nariwindows.h"
 
 
 #define PRINT_TIME std::cout << (double)(end - start) / CLOCKS_PER_SEC << std::endl
 
 
 void pretrain(const Eigen::MatrixXf& train_X, const Eigen::MatrixXf& train_Y, const Eigen::MatrixXf& valid_X, const Eigen::MatrixXf& valid_Y, Eigen::MatrixXf& W, Eigen::MatrixXf& bout, Eigen::MatrixXf& bhid,
-	float lr, int train_epoch, int batch_size, int n_hidden, const std::string& dir_o)
+	float lr, int train_epoch, int batch_size, int n_hidden, const std::string& dir_o, int valid_num = 10)
 {
 
 
 	size_t n_visible = train_X.rows();
 	size_t n_sample = train_X.cols();
 	size_t n_batch = n_sample / batch_size;
-	double error = 0.0;
+	double batch_cost = 0.0;
 	double valid_error = 0.0;
 	time_t start, end;
-	Eigen::VectorXf error_sum(n_batch);
-	std::vector<float> cost;
-	std::vector<float> valid_cost;
+	double epoch_cost;
+	//std::vector<float> cost;
+	//std::vector<float> valid_cost;
 	Eigen::MatrixXf batch = batch.Zero(n_visible, batch_size);
 	Eigen::MatrixXf batch_ans = batch_ans.Zero(n_visible, batch_size);
 
 	std::vector<float> bb(n_visible);
 	std::vector<float> cc(n_hidden);
+
+	std::vector<double> cost_vec;
+	std::vector<double> valid_cost_vec;
+	std::vector<double> valid_cost_avg;
 
 	//constract
 	AE sdae(n_visible, n_hidden, n_sample);
@@ -39,36 +45,84 @@ void pretrain(const Eigen::MatrixXf& train_X, const Eigen::MatrixXf& train_Y, co
 	start = clock();
 	//train
 	std::cout << "pre_training start v(^_^)v" << std::endl;
+
+	int count_valid = 0;
+
 	for (size_t epoch = 0; epoch < train_epoch; epoch++){
 		for (int batch_index = 0; batch_index < n_batch; batch_index++){
 			batch = train_X.block(0, batch_size * batch_index, n_visible, batch_size);
 			batch_ans = train_Y.block(0, batch_size * batch_index, n_visible, batch_size);
-			sdae.param_update(batch, batch_ans, lr, error);
-			error_sum(batch_index) = (float)error;
+			sdae.param_update(batch, batch_ans, lr, batch_cost);
+			epoch_cost += batch_cost;
 
 			if (0 == batch_index % 100)
 			{
 				std::cout << "pretrain_epoch_" << epoch + 1 << "/" << train_epoch << "...batch" << batch_index << "/" << n_batch << std::endl;
-				std::cout << "cost = " << error / batch_size << std::endl;
+				std::cout << "cost = " << batch_cost / batch_size << std::endl;
 			}
-			error = 0.0;
+			batch_cost = 0.0;
+		} // ミニバッチループ
+
+		
+		epoch_cost /= n_sample;
+		cost_vec.push_back(epoch_cost);
+		printf("epoch : %d, cost = %f\n", (epoch + 1), epoch_cost);
+		epoch_cost = 0.0;
+
+
+		sdae.valid_test(valid_X, valid_Y, lr, valid_error);
+		valid_cost_vec.push_back(valid_error);
+
+		std::cout << "cross-validation error : " << valid_error << std::endl;
+
+		// validation_num回おきに検定を行う
+
+		if ((valid_cost_avg.size() > 0) && ((epoch + 1) % valid_num == 0)){
+			std::cout << count_valid + 1 << "回目の検定を行います(*'ω'*)" << std::endl;
+			///////////////////////////////////////////////////////////
+			double total = 0;
+			for (int val_n = 0; val_n < valid_num; val_n++)
+			{
+				total += valid_cost_vec[epoch - val_n];
+			}
+			valid_cost_avg.push_back(total / valid_num);
+
+
+			std::cout << "前回 : " << valid_cost_avg[count_valid] << std::endl;
+			std::cout << "今回 : " << valid_cost_avg[count_valid + 1] << std::endl;
+
+			if (valid_cost_avg[count_valid] < valid_cost_avg[count_valid + 1])
+			{
+				break;	// early-stopping
+			}
+			count_valid++;
+			std::cout << "処理続行します('◇')ゞ" << std::endl;
 		}
-		cost.push_back(error_sum.sum() / train_X.cols());
 
-		error_sum = Eigen::VectorXf::Zero(error_sum.rows());
-
-		if (epoch % 10 == 0)
+		// 1回目のvalidation検定の平均を計算
+		if (valid_cost_vec.size() == valid_num)
 		{
-			sdae.valid_test(valid_X, valid_Y, lr, valid_error);
-			valid_cost.push_back((float)valid_error / valid_X.cols());
-			std::cout << "cross-validation error : " << valid_error / valid_X.cols() << std::endl;
-
-			valid_error = 0.0;
-
-			if ((epoch > 0) & (valid_cost[epoch / 10 - 1] < valid_cost[epoch / 10])){
-				break;
+			double total = 0;
+			for (int val_n = 0; val_n < valid_num; val_n++)
+			{
+				total += valid_cost_vec[val_n];
 			}
+			valid_cost_avg.push_back(total / valid_num);
 		}
+
+
+		//if (epoch % 10 == 0)
+		//{
+		//	sdae.valid_test(valid_X, valid_Y, lr, valid_error);
+		//	valid_cost.push_back((float)valid_error / valid_X.cols());
+		//	std::cout << "cross-validation error : " << valid_error / valid_X.cols() << std::endl;
+
+		//	valid_error = 0.0;
+
+		//	if ((epoch > 0) & (valid_cost[epoch / 10 - 1] < valid_cost[epoch / 10])){
+		//		break;
+		//	}
+		//}
 	}
 	end = clock();
 
@@ -78,8 +132,8 @@ void pretrain(const Eigen::MatrixXf& train_X, const Eigen::MatrixXf& train_Y, co
 
 	std::ofstream time(dir_o + "/time.txt");
 	time << "time : " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
-	vec_to_txt(cost, dir_o + "/cost.txt");
-	vec_to_txt(valid_cost, dir_o + "/valid_cost.txt");
+	vec_to_txt(cost_vec, dir_o + "/cost.txt");
+	vec_to_txt(valid_cost_vec, dir_o + "/valid_cost.txt");
 
 	write_raw_and_txt(sdae.W, dir_o + "/W");
 	write_raw_and_txt(sdae.bhid, dir_o + "/bhid");
@@ -268,23 +322,29 @@ void forward_prop(const Eigen::MatrixXf& trainX, const Eigen::MatrixXf& Weight, 
 }
 
 
-void fine_tuning(std::vector<SDAE>& sdae, const Eigen::MatrixXf& trainX, const Eigen::MatrixXf& trainY, const Eigen::MatrixXf& validX, const Eigen::MatrixXf& validY, float eps, int train_epoch, int batch_size, std::string dir_o)
+void fine_tuning(std::vector<SDAE>& sdae, const Eigen::MatrixXf& trainX, const Eigen::MatrixXf& trainY, const Eigen::MatrixXf& validX, const Eigen::MatrixXf& validY, float eps, int train_epoch, int batch_size, std::string dir_o, int valid_num = 10)
 {
 
 	size_t n_sample = trainX.cols();
 	size_t n_batch = n_sample / batch_size;
-	double error = 0.0;
 	time_t start, end;
-	Eigen::VectorXf error_sum(n_batch);
-	std::vector<float> cost;
-	std::vector<float> valid_cost;
+	double epoch_cost = 0.0;
+	double batch_cost = 0.0;
+	double valid_cost = 0.0;
+
 	Eigen::MatrixXf batchX;
 	Eigen::MatrixXf batchY;
 	Eigen::MatrixXf Output;
 	Eigen::MatrixXf diff;
 	std::vector<Eigen::MatrixXf> valid_out(sdae.size());
 
+	std::vector<double> cost_vec;
+	std::vector<double> valid_cost_vec;
+	std::vector<double> valid_cost_avg;
+
 	start = clock();
+	int count_valid = 0;
+
 	for (size_t epoch = 0; epoch < train_epoch; epoch++){
 		for (size_t batch_index = 0; batch_index < n_batch; batch_index++){
 
@@ -310,15 +370,15 @@ void fine_tuning(std::vector<SDAE>& sdae, const Eigen::MatrixXf& trainX, const E
 			//error = -(batchY.array() * (sdae.back().output.array() + FLT_MIN).log() + (1. - batchY.array()) * (1. - sdae.back().output.array() + FLT_MIN).log()).sum();
 
 			// 二乗誤差
-			error = ((diff.array() * diff.array()).matrix()).sum();
+			batch_cost = ((diff.array() * diff.array()).matrix()).sum();
 
 			if (0 == batch_index % 100){
 				std::cout << "finetuning_epoch_" << epoch + 1 << "/" << train_epoch << "...batch" << batch_index << "/" << n_batch << std::endl;
-				std::cout << "cost = " << error / batch_size << std::endl;
+				std::cout << "cost = " << batch_cost / batch_size << std::endl;
 			}
 
-			error_sum(batch_index) = (float)error;
-			error = 0.0;
+			epoch_cost += batch_cost;
+			batch_cost = 0.0;
 			for (auto it = sdae.rbegin(); it != sdae.rend(); it++)
 			{
 				// 入力層のところ
@@ -335,6 +395,7 @@ void fine_tuning(std::vector<SDAE>& sdae, const Eigen::MatrixXf& trainX, const E
 
 				}
 
+				// その他
 				else
 				{
 					it->d = diff.array() * it->output.array() * (1 - it->output.array());
@@ -349,35 +410,92 @@ void fine_tuning(std::vector<SDAE>& sdae, const Eigen::MatrixXf& trainX, const E
 				}
 
 			}
-		}
-		cost.push_back(error_sum.sum() / n_sample);
+		} // ミニバッチループ
 
-		error_sum = Eigen::VectorXf::Zero(error_sum.rows());
+		epoch_cost /= n_sample;
+		cost_vec.push_back(epoch_cost);
+		printf("epoch : %d, cost = %f\n", (epoch + 1), epoch_cost);
+		epoch_cost = 0.0;
 
-		if (epoch % 10 == 0){
-			for (int i = 0; i < sdae.size(); i++)
+
+		// validationエラーを計算
+		for (int i = 0; i < sdae.size(); i++)
+		{
+			if (i == 0)
 			{
-				if (i == 0)
-				{
-					forward_prop(validX, sdae[i].W, sdae[i].bhid, valid_out[i]);
-				}
-				else
-				{
-					forward_prop(valid_out[i - 1], sdae[i].W, sdae[i].bhid, valid_out[i]);
-				}
+				forward_prop(validX, sdae[i].W, sdae[i].bhid, valid_out[i]);
 			}
-
-			// クロスエントロピー
-			//valid_cost.push_back((-(validY.array() * (valid_out.back().array() + FLT_MIN).log() + (1. - validY.array()) * (1. - valid_out.back().array() + FLT_MIN).log())).sum() / validY.cols());
-
-			// 二乗誤差
-			valid_cost.push_back(((validY.array() - valid_out.back().array()).array() * (validY.array() - valid_out.back().array()).array()).sum() / validY.cols());
-			std::cout << "cross-validation error : " << valid_cost[epoch / 10] << std::endl;
-
-			if ((epoch > 0) & (valid_cost[epoch / 10 - 1] < valid_cost[epoch / 10])){
-				break;
+			else
+			{
+				forward_prop(valid_out[i - 1], sdae[i].W, sdae[i].bhid, valid_out[i]);
 			}
 		}
+		// 二乗誤差
+		valid_cost = ((validY.array() - valid_out.back().array()).array() * (validY.array() - valid_out.back().array()).array()).sum() / validY.cols();
+		valid_cost_vec.push_back(valid_cost);
+		std::cout << "cross-validation error : " << valid_cost << std::endl;
+		valid_cost = 0.0;
+		
+		//validation_num回おきに検定を行う
+		if ((valid_cost_avg.size() > 0) && ((epoch + 1) % valid_num == 0)){
+			std::cout << count_valid + 1 << "回目の検定を行います(*'ω'*)" << std::endl;
+			///////////////////////////////////////////////////////////
+			double total = 0;
+			for (int val_n = 0; val_n < valid_num; val_n++)
+			{
+				total += valid_cost_vec[epoch - val_n];
+			}
+			valid_cost_avg.push_back(total / valid_num);
+
+
+			std::cout << "前回 : " << valid_cost_avg[count_valid] << std::endl;
+			std::cout << "今回 : " << valid_cost_avg[count_valid + 1] << std::endl;
+
+			if (valid_cost_avg[count_valid] < valid_cost_avg[count_valid + 1])
+			{
+				break;	// early-stopping
+			}
+			count_valid++;
+			std::cout << "処理続行します('◇')ゞ" << std::endl;
+		}
+
+		// 1回目のvalidation検定の平均を計算
+		if (valid_cost_vec.size() == valid_num)
+		{
+			double total = 0;
+			for (int val_n = 0; val_n < valid_num; val_n++)
+			{
+				total += valid_cost_vec[val_n];
+			}
+			valid_cost_avg.push_back(total / valid_num);
+		}
+
+
+
+		//if (epoch % 10 == 0){
+		//	for (int i = 0; i < sdae.size(); i++)
+		//	{
+		//		if (i == 0)
+		//		{
+		//			forward_prop(validX, sdae[i].W, sdae[i].bhid, valid_out[i]);
+		//		}
+		//		else
+		//		{
+		//			forward_prop(valid_out[i-1], sdae[i].W, sdae[i].bhid, valid_out[i]);
+		//		}
+		//	}
+
+		//	// クロスエントロピー
+		//	//valid_cost.push_back((-(validY.array() * (valid_out.back().array() + FLT_MIN).log() + (1. - validY.array()) * (1. - valid_out.back().array() + FLT_MIN).log())).sum() / validY.cols());
+
+		//	// 二乗誤差
+		//	valid_cost.push_back(((validY.array() - valid_out.back().array()).array() * (validY.array() - valid_out.back().array()).array()).sum() / validY.cols());
+		//	std::cout << "cross-validation error : " << valid_cost[epoch / 10] << std::endl;
+
+		//	if ((epoch > 0) & (valid_cost[epoch / 10 - 1] < valid_cost[epoch / 10])){
+		//		break;
+		//	}
+		//}
 	}
 
 	end = clock();
@@ -388,8 +506,8 @@ void fine_tuning(std::vector<SDAE>& sdae, const Eigen::MatrixXf& trainX, const E
 
 	std::ofstream time(dir_o + "/time.txt");
 	time << "time : " << (double)(end - start) / CLOCKS_PER_SEC << std::endl;
-	vec_to_txt(cost, dir_o + "/cost.txt");
-	vec_to_txt(valid_cost, dir_o + "/valid_cost.txt");
+	vec_to_txt(cost_vec, dir_o + "/cost.txt");
+	vec_to_txt(valid_cost_vec, dir_o + "/valid_cost.txt");
 
 	int cnt = 1;
 	for (auto it = sdae.begin(); it != sdae.end(); it++)

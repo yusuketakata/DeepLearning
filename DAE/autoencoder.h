@@ -1,8 +1,8 @@
 #pragma once
 
 #include "Header.h"
-#include "eigen-eigen-10219c95fe65\Eigen\Core"
-
+#include "tktlib\eigen-eigen-10219c95fe65\Eigen\Core"
+#include "tktlib\raw_io.h"
 
 class AE
 {
@@ -20,7 +20,7 @@ public:
 
 	AE(size_t, size_t, size_t);
 
-
+	
 	Eigen::MatrixXf encoder(const Eigen::MatrixXf&);
 	Eigen::MatrixXf decoder(const Eigen::MatrixXf&);
 	void param_update(const Eigen::MatrixXf&, const Eigen::MatrixXf&, float, double&);
@@ -149,5 +149,5 @@ void AE::valid_test(const Eigen::MatrixXf& input, const Eigen::MatrixXf& answer,
 	// クロスエントロピー
 	//error = -(answer.array() * (Output.array() + FLT_MIN).log() + (1. - answer.array()) * (1. - Output.array() + FLT_MIN).log()).sum();
 	// 二乗誤差
-	error = ((answer.array() - Output.array()).array() * (answer.array() - Output.array()).array()).sum();
+	error = ((answer.array() - Output.array()).array() * (answer.array() - Output.array()).array()).sum() / input.cols();
 }
